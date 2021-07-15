@@ -16,8 +16,8 @@ import (
 // - Maybe do `(cd repos && for x in *; do (cd $x && git fetch && git checkout origin/master); done)` to get everything up-to-date.
 
 // Tricky todos:
-// - If any of your entrypoint repos are also mid-chart (i.e. other entrypoint repos depend on them, either directly or indirectly), we get an anonymous version of the entrypoint one.  May require some UI tweakery.
 // - Sometimes people make replace directives in their mod files that points to paths that aren't there.  (I'm looking at you, lotus.  There's a submodule.  Very creative.)  This makes go mod error.  That error is currently not raised very readably.
+// - Go mod graph seems to... not actually be applying MVS before telling us its story.  I can't decide if that's troublesome or fine.  But it does mean you can end up seeing multiple versions of things even if you you have a single start module, which may be unintuitive.
 
 func main() {
 	var relationships []Relationship
@@ -130,6 +130,7 @@ func walkies(focus ModuleName, relationships []Relationship) ProcessedGraph {
 }
 
 func (pg *ProcessedGraph) flood(edgesByUpstreamModule map[ModuleName][]Relationship, module ModuleName) {
+	// TODO: think about handling major versions more explicitly.  What the go tool is doing leaves us grouping v0 and v1 together right now, but higher versions are separate.
 	if _, alreadyDone := pg.Subgraphs[module]; alreadyDone {
 		return
 	}
@@ -165,6 +166,8 @@ digraph G {
 
 	// Two ways to go about ranking: "rank=same" in all subgraphs, and "newrank=true" globally; or, "newrank=false" globally (so subgraphs do their own rank), and assign ranks explicitly in subgraphs.
 	// The latter lets us sort things by version, so let's do that.
+
+	// Future: considered discoloring things that have a bunch of dashes in the version name.  Those are non-tags.
 
 	for moduleName, subgraph := range pg.Subgraphs {
 		fmt.Fprintf(w, `subgraph "cluster_%s" {`+"\n", moduleName)
