@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -71,6 +72,17 @@ type ProcessedGraph struct {
 // Has an implied ModuleName, because that's a map key above this.
 type Subgraph struct {
 	Contains map[ModuleAndVersion]struct{} // this value might be come colorization cue data later or something?
+}
+
+func (sg Subgraph) ContentsOrdered() []ModuleAndVersion {
+	r := make([]ModuleAndVersion, 0, len(sg.Contains))
+	for mv := range sg.Contains {
+		r = append(r, mv)
+	}
+	sort.SliceStable(r, func(i, j int) bool {
+		return r[i].Version < r[j].Version
+	})
+	return r
 }
 
 func ParseModuleAndVersion(s string) ModuleAndVersion {
@@ -172,10 +184,8 @@ digraph G {
 	for moduleName, subgraph := range pg.Subgraphs {
 		fmt.Fprintf(w, `subgraph "cluster_%s" {`+"\n", moduleName)
 		fmt.Fprintf(w, `label="%s";`+"\n", moduleName)
-		rank := 0
-		for node := range subgraph.Contains {
+		for rank, node := range subgraph.ContentsOrdered() {
 			fmt.Fprintf(w, `"%s" [label="%s" rank=%d];`+"\n", node, node.Version, rank)
-			rank++ // Future: this would be better if we sorted.
 		}
 		fmt.Fprintf(w, `}`+"\n")
 	}
