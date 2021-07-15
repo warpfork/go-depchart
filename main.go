@@ -158,16 +158,21 @@ digraph G {
     edge [tailport=e penwidth=2];
     compound=true;
     rankdir=LR;
-    newrank=true;
     ranksep="2.5";
     quantum="0.5";
 `)
+	// Future: may want to sort these or make them stable by keeping insert order (sigh).  graphviz does seem to vary things a bit based on input order.
+
+	// Two ways to go about ranking: "rank=same" in all subgraphs, and "newrank=true" globally; or, "newrank=false" globally (so subgraphs do their own rank), and assign ranks explicitly in subgraphs.
+	// The latter lets us sort things by version, so let's do that.
+
 	for moduleName, subgraph := range pg.Subgraphs {
 		fmt.Fprintf(w, `subgraph "cluster_%s" {`+"\n", moduleName)
-		fmt.Fprintf(w, `rankdir=LR;`+"\n", moduleName)
 		fmt.Fprintf(w, `label="%s";`+"\n", moduleName)
+		rank := 0
 		for node := range subgraph.Contains {
-			fmt.Fprintf(w, `"%s" [label="%s" rank=0];`+"\n", node, node.Version)
+			fmt.Fprintf(w, `"%s" [label="%s" rank=%d];`+"\n", node, node.Version, rank)
+			rank++ // Future: this would be better if we sorted.
 		}
 		fmt.Fprintf(w, `}`+"\n")
 	}
